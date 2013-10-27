@@ -15,9 +15,38 @@ const St = imports.gi.St;
 
 const Main = imports.ui.main;
 const PopupMenu = imports.ui.popupMenu;
+const Slider = imports.ui.slider;
 
 
 let advMixer;
+
+
+const PopupSliderMenuItem = new Lang.Class({
+    Name: 'PopupSliderMenuItem',
+    Extends: PopupMenu.PopupBaseMenuItem,
+
+  _init: function(value) {
+    //PopupMenu.PopupBaseMenuItem.prototype._init.call(this,{ activate: false });
+    this.parent({ activate: false });
+    this._slider = new Slider.Slider(value);
+    this._slider.connect('value-changed', Lang.bind(this, function(actor, value) {
+        this.emit('value-changed', value);
+    }));
+    this.actor.add(this._slider.actor, { expand: true });
+  },
+
+  setValue: function(value) {
+    this._slider.setValue(value);
+  },
+
+  get value() {
+    return this._slider.value;
+  },
+
+  scroll: function (event) {
+    this._slider.scroll(event);
+  }
+});
 
 
 function AdvPopupSwitchMenuItem() {
@@ -42,8 +71,8 @@ AdvPopupSwitchMenuItem.prototype = {
     });
 
     // Rebuild switch
-    this.removeActor(this._statusBin);
-    this.removeActor(this.label)
+    this.actor.remove_actor(this._statusBin);
+    this.actor.remove_actor(this.label)
 
     // Horizontal box
     let labelBox = new St.BoxLayout({vertical: false});
@@ -54,8 +83,8 @@ AdvPopupSwitchMenuItem.prototype = {
                  {expand: false, x_fill: false, x_align: St.Align.START});
     labelBox.add(this._statusBin,
                  {expand: true, x_fill: true, x_align: St.Align.END});
-            
-    this.addActor(labelBox, {span: -1, expand: true });
+
+    this.actor.add_actor(labelBox, {span: -1, expand: true });
   }
 }
 
@@ -89,11 +118,7 @@ AdvMixer.prototype = {
       Lang.bind(this, this._defaultSinkChanged)
     );
 
-    // Change Volume title
-    let title = this._mixer._volumeMenu.firstMenuItem.firstMenuItem;
-    title.destroy();
-
-    this._mixer._volumeMenu.firstMenuItem.addMenuItem(this._outputMenu, 0);
+    this._mixer._volumeMenu.addMenuItem(this._outputMenu, 0);
     this._outputMenu.actor.show();
 
     // Add streams
@@ -125,7 +150,7 @@ AdvMixer.prototype = {
     if (stream["is-event-stream"]) {
       // Do nothing
     } else if (stream instanceof Gvc.MixerSinkInput) {
-      let slider = new PopupMenu.PopupSliderMenuItem(
+      let slider = new PopupSliderMenuItem(
         stream.volume / this._control.get_vol_max_norm()
       );
       let title = new AdvPopupSwitchMenuItem(
@@ -196,7 +221,8 @@ AdvMixer.prototype = {
 
   _defaultSinkChanged: function(control, id) {
     for (let output in this._outputs) {
-      this._outputs[output].setShowDot(output == id);
+      let check = (output == id) ? 2 : 0;
+      this._outputs[output].setOrnament(check);
     }
   },
 
@@ -276,8 +302,8 @@ function init() {
 
 
 function enable() {
-  if (Main.panel.statusArea['volume'] && !advMixer) {
-    advMixer = new AdvMixer(Main.panel.statusArea["volume"]);
+  if (Main.panel.statusArea["aggregateMenu"]._volume && !advMixer) {
+    advMixer = new AdvMixer(Main.panel.statusArea["aggregateMenu"]._volume);
   }
 }
 
